@@ -1,0 +1,19 @@
+{
+  "name": "book-my-show",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "start": "node --env-file=.env index.js",
+    "dev" : "nodemon --env-file=.env index.js"
+  },
+  "author": "Suraj Kumar <surajkr.759@gmail.com>",
+  "license": "ISC",
+  "description": "",
+  "dependencies": {
+    "express": "^4.19.2",
+    "mongoose": "^8.5.1"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.4"
+  }
+}
