@@ -1,23 +1,34 @@
 const User = require('../models/user')
+const lib = require('../lib/user')
 
 const handleSignupRequest = async (req, res) => {
-    const { firstName, lastName, email, password } = req.body
+    const safeParseResult = lib.validateUserSignup(req.body)
+
+    if(safeParseResult.error) {
+        return res.status(400).json({ status: 'error', error: safeParseResult.error})
+    }
+
+    const { firstName, lastName, email, password } = safeParseResult.data
 
     try {
-        const { hashedPasword, salt } = generatePassword(password)
+        const { hashedPasword, salt } = lib.generateHash(password)
 
         const newUser = await User.create({
             firstName,
             lastName,
             email,
             password: hashedPasword,
-            salt: salt
+            salt
         })
 
-        return res.status(200).json({ status: 'success', data: newUser._id})
+        //Generate JWT Token
+        
+        return res.status(200).json({ status: 'success', data: {_id: newUser._id}})
 
     } catch (err) {
-        return res.status(500).json({status: 'error', message: err.message})
+        if(err.code === 11000)
+            return res.status(400).json({status: 'error', message: 'Email already exists'})
+        return res.status(500).json({status: 'error', message: 'Internal Server Error'})
     }
 }
 

@@ -4,13 +4,12 @@ const authRoute = require('./routes/auth')
 
 const app = express()
 const PORT = process.env.PORT
-const MONGODB_URI = process.env.MONGODB_URI
+// const MONGODB_URI = process.env.MONGODB_URI
 
 if(!PORT) throw new Error('PORT is not defined')
 
-// mongoose.connect(MONGODB_URI)
-// .then(() => console.log('MongoDB connected...'))
-// .catch((err) => console.log('Something went wrong...', err))
+mongoose.connect(process.env.MONGODB_URI)
+.then(() => console.log('MongoDB connected...'))
 
 app.use(express.json())
 
