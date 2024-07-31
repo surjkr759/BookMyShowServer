@@ -1,7 +1,5 @@
-const crypto = require('crypto')
 const User = require('../models/user')
 const lib = require('../lib/user')
-const JWT = require('../lib/auth')
 
 const handleSignupRequest = async (req, res) => {
     const safeParseResult = lib.validateUserSignup(req.body)
@@ -10,21 +8,22 @@ const handleSignupRequest = async (req, res) => {
         return res.status(400).json({ status: 'error', error: safeParseResult.error})
     }
 
-    const { firstName, lastName, email, password } = safeParseResult.data
+    const { firstName, lastName, email, password, role } = safeParseResult.data
 
     try {
-        const { hashedPasword, salt } = lib.generateHash(password)
+        const { hashedPassword, salt } = lib.generateHash(password)
 
         const newUser = await User.create({
             firstName,
             lastName,
             email,
-            password: hashedPasword,
-            salt
+            password: hashedPassword,
+            salt,
+            role: role || 'user'
         })
 
         //Generate JWT Token
-        const token = JWT.generateToken({_id: newUser._id, role: newUser.role})
+        const token = lib.generateToken({_id: newUser._id.toString(), role: newUser.role})
 
         return res.status(200).json({ status: 'success', data: {_id: newUser._id, token: token}})
 
@@ -50,15 +49,34 @@ const handleSigninRequest = async (req, res) => {
         return res.status(400).json({ status: 'error', message: 'Email does not exist'})
     const salt = user.salt
     const passwordInDb = user.password
-    const hashedPasword = crypto.createHmac('sha256', salt).update(password).digest('hex')
+    // const hashedPassword = crypto.createHmac('sha256', salt).update(password).digest('hex')
+    const { hashedPassword } = lib.generateHash(password, salt)
 
-    if(passwordInDb !== hashedPasword)
+    if(passwordInDb !== hashedPassword)
         return res.status(400).json({ status: 'error', message: 'Email or password mismatch'})
 
     //Generate JWT Token
-    const token = JWT.generateToken({_id: user._id, role: user.role})
+    const token = lib.generateToken({_id: user._id.toString(), role: user.role})
 
     return res.status(200).json({ status: 'success', data: {_id: user._id, token: token}})
 }
 
-module.exports = { handleSignupRequest, handleSigninRequest }
+
+const handleGetUserProfile = async (req, res) => {
+    const user = req.user
+
+    if(!user) return res.json({ profile: null })
+
+    const userInDb = await User.findById(user._id)
+
+    return res.json({
+        profile: {
+            firstName: userInDb.firstName,
+            lastName: userInDb.lastName,
+            email: userInDb.email,
+            role: userInDb.role,
+        }
+    })
+}
+
+module.exports = { handleSignupRequest, handleSigninRequest, handleGetUserProfile }
