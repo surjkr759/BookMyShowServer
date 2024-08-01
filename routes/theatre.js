@@ -12,7 +12,7 @@ router.post('/', ensureAuthenticated(['admin']), controller.handleCreateNewTheat
 
 router.delete('/:id', controller.handleDeleteTheatreById)
 
-router.patch('/:id')
+router.put('/:id', ensureAuthenticated(['admin']), controller.handleUpdateTheatreById)
 
 
 

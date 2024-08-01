@@ -42,7 +42,28 @@ const handleCreateNewTheatre = async (req, res) => {
     } catch (err) {
         return res.status(500).json({status: 'error', error: 'Internal Server Error'})
     }
-    
+}
+
+
+const handleUpdateTheatreById = async (req, res) => {
+    const theatreId = req.params.id
+
+    const safeParseResult = theatreLib.validateNewTheatreCreation(req.body)
+
+    if(safeParseResult.error) throw new error(safeParseResult.error)
+
+    const { theatreName, location: {lat, lon, address}, isActive } = safeParseResult.data
+
+    try {
+        const theatre = await Theatre.findByIdAndUpdate(
+            theatreId,
+            { theatreName, location: {lat, lon, address}, isActive },
+            { new: true }
+        )
+        return res.status(200).json({ status: 'success', data: { id: theatre._id}})
+    } catch (err) {
+        return res.status(500).json({status: 'error', error: 'Internal Server Error'})
+    }
 }
 
 
@@ -56,4 +77,4 @@ const handleDeleteTheatreById = async (req, res) => {
 }
 
 
-module.exports = { handleCreateNewTheatre, handleGetAllTheatres, handleGetTheatreById, handleDeleteTheatreById }
+module.exports = { handleCreateNewTheatre, handleGetAllTheatres, handleGetTheatreById, handleUpdateTheatreById, handleDeleteTheatreById }

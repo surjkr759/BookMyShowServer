@@ -42,6 +42,28 @@ const handleCreateMovie = async (req, res) => {
 }
 
 
+const handleUpdateMovieById = async (req, res) => {
+    const movieId = req.params.id
+
+    const safeParseResult = movieLib.validateCreateMovieInputs(req.body)
+
+    if(safeParseResult.error) throw new error(safeParseResult.error)
+
+    const { title, description, language } = safeParseResult.data
+
+    try {
+        const movie = await Movie.findByIdAndUpdate(
+            movieId,
+            { title, description, language },
+            { new: true }
+        )
+        return res.status(200).json({ status: 'success', data: { id: movie._id}})
+    } catch (err) {
+        return res.status(500).json({status: 'error', error: 'Internal Server Error'})
+    }
+}
+
+
 const handleDeleteMovieById = async (req, res) => {
     const id = req.params.id
     try {
@@ -55,4 +77,4 @@ const handleDeleteMovieById = async (req, res) => {
 
 
 
-module.exports = { handleCreateMovie, handleGetAllMovies, handleGetMovieById, handleDeleteMovieById }
+module.exports = { handleCreateMovie, handleGetAllMovies, handleGetMovieById, handleUpdateMovieById, handleDeleteMovieById }

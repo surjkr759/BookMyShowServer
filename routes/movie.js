@@ -11,7 +11,6 @@ router.post('/', middleware.ensureAuthenticated(['admin']), controller.handleCre
 
 router.delete('/:id', middleware.ensureAuthenticated(['admin']), controller.handleDeleteMovieById)
 
-//Yet to implement
-router.put('/:id')
+router.put('/:id', middleware.ensureAuthenticated(['admin']), controller.handleUpdateMovieById)
 
 module.exports = router
