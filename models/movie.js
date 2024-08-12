@@ -12,7 +12,7 @@ const movieSchema = new Schema({
     language: {
         type: String,
         required: true,
-    }
+    },
 }, { timestamps: true })
 
 const Movie = model('movie', movieSchema)

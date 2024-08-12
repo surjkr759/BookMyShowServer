@@ -7,6 +7,9 @@ const router = express.Router()
 router.get('/', controller.handleGetAllMovies)
 router.get('/:id', controller.handleGetMovieById)
 
+//id===> movie Id
+router.get('/:id/schedule', controller.handleGetMovieSchedule)
+
 router.post('/', middleware.ensureAuthenticated(['admin']), controller.handleCreateMovie)
 
 router.delete('/:id', middleware.ensureAuthenticated(['admin']), controller.handleDeleteMovieById)

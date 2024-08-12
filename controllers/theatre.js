@@ -4,7 +4,7 @@ const theatreLib = require('../lib/theatre')
 
 const handleGetAllTheatres = async (req, res) => {
     const page = req.query.page ? parseInt(req.query.page) : 1
-    const LIMIT = 5
+    const LIMIT = 10
     const skipValue = (page - 1) * LIMIT
     try {
         const theatres = await Theatre.find({}).skip(skipValue).limit(LIMIT)

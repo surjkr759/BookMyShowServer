@@ -1,5 +1,10 @@
 const MovieSchedule = require('../models/movieSchedule')
+const User = require('../models/user')
+const Movie = require('../models/movie')
 const movieScheduleLib = require('../lib/movieSchedule')
+const Booking = require('../models/booking')
+
+const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY)
 
 
 const handleGetAllMovieSchedules = async (req, res) => {
@@ -70,4 +75,99 @@ const handleDeleteMovieScheduleById = async (req, res) => {
 }
 
 
-module.exports = { handleCreateMovieSchedule, handleGetAllMovieSchedules, handleGetMovieScheduleById, handleUpdateMovieScheduleById, handleDeleteMovieScheduleById }
+const handleCreateBookingOrder = async (req, res) => {
+    const scheduleId = req.params.id
+    const schedule = await MovieSchedule.findById(scheduleId)
+    const user = await User.findById(req.user._id)
+    const movie = await Movie.findById(schedule.movieId)
+
+    if(!schedule)
+        return res.status(404).json({status: 'error', message: 'Movie Schedule not found'})
+    else if(schedule && new Date().toLocaleString() > schedule.startTime)
+        return res.status(400).json({ status: 'error', message: 'Booking not allowed for a past schedule'})
+
+    const session = await stripe.checkout.sessions.create({
+        success_url: 'http://localhost:5173/success',
+        // return_url: `http://localhost:5173/movie/${schedule.movieId}`,
+        customer_email: user.email,
+        line_items: [
+            {
+                adjustable_quantity: { enabled: true },
+                price_data: {
+                    unit_amount: parseInt(schedule.price) * 100,
+                    currency: 'INR',
+                    product_data: {
+                        name: movie.title
+                    }
+                },
+                quantity: 1,
+            }
+        ],
+        metadata: {userId: req.user._id, scheduleId: `${schedule._id}`},
+        mode: 'payment',
+    })
+
+    // console.log('Session URL:', session.url)
+
+    return res.json({ status: 'success', data: session})
+}
+
+
+const handleGetAllBookings = async (req, res) => {
+    const allBookings = await Booking.aggregate([
+        {
+          '$lookup': {
+            'from': 'users', 
+            'localField': 'userId', 
+            'foreignField': '_id', 
+            'as': 'user'
+          }
+        }, {
+          '$unwind': {
+            'path': '$user', 
+            'preserveNullAndEmptyArrays': false
+          }
+        }, {
+          '$lookup': {
+            'from': 'movieschedules', 
+            'localField': 'scheduleId', 
+            'foreignField': '_id', 
+            'as': 'schedule', 
+            'pipeline': [
+              {
+                '$lookup': {
+                  'from': 'movies', 
+                  'localField': 'movieId', 
+                  'foreignField': '_id', 
+                  'as': 'movie'
+                }
+              }, {
+                '$unwind': {
+                  'path': '$movie'
+                }
+              }, {
+                '$lookup': {
+                  'from': 'theatres', 
+                  'localField': 'theatreId', 
+                  'foreignField': '_id', 
+                  'as': 'theatre'
+                }
+              }, {
+                '$unwind': {
+                  'path': '$theatre'
+                }
+              }
+            ]
+          }
+        }, {
+          '$unwind': {
+            'path': '$schedule'
+          }
+        }
+      ])
+
+      return res.json({data: {bookings: allBookings}})
+}
+
+
+module.exports = { handleCreateMovieSchedule, handleGetAllMovieSchedules, handleGetMovieScheduleById, handleUpdateMovieScheduleById, handleDeleteMovieScheduleById, handleCreateBookingOrder, handleGetAllBookings }
