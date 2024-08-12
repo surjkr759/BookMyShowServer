@@ -32,10 +32,10 @@ const handleCreateMovie = async (req, res) => {
 
     if (safeParseResult.error) throw new error(safeParseResult.error)
 
-    const { title, description, language } = safeParseResult.data
+    const { title, description, language, genre, releaseDate, imageUrl } = safeParseResult.data
 
     try {
-        const movie = await Movie.create({ title, description, language })
+        const movie = await Movie.create({ title, description, language, genre, releaseDate, imageUrl })
         return res.status(201).json({ status: 'success', data: { id: movie._id } })
     } catch (err) {
         return res.status(500).json({ status: 'error', error: 'Internal Server Error' })

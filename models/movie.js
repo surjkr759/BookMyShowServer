@@ -13,6 +13,18 @@ const movieSchema = new Schema({
         type: String,
         required: true,
     },
+    genre: {
+        type: String,
+        required: true,
+    },
+    releaseDate: {
+        type: Date,
+        required: true,
+    },
+    imageUrl: {
+        type: String,
+        required: true,
+    },
 }, { timestamps: true })
 
 const Movie = model('movie', movieSchema)
