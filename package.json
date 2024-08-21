@@ -3,8 +3,9 @@
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
-    "start": "node --env-file=.env index.js",
-    "dev": "nodemon --env-file=.env index.js"
+    "start": "node --env-file=.env app.js",
+    "dev": "nodemon --env-file=.env app.js",
+    "build": "netlify deploy --prod"
   },
   "author": "Suraj Kumar <surajkr.759@gmail.com>",
   "license": "ISC",
@@ -14,11 +15,13 @@
     "express": "^4.19.2",
     "jsonwebtoken": "^9.0.2",
     "mongoose": "^8.5.1",
+    "serverless-http": "^3.2.0",
     "stripe": "^16.7.0",
     "uuid": "^10.0.0",
     "zod": "^3.23.8"
   },
   "devDependencies": {
+    "netlify-cli": "^17.34.2",
     "nodemon": "^3.1.4"
   }
 }
