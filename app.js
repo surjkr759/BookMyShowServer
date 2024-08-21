@@ -68,6 +68,6 @@ app.use('/api/v1/movieSchedule', movieScheduleRoute)
 
 
 
-app.listen(PORT, () => console.log(`Server started on PORT ${PORT}`))
+// app.listen(PORT, () => console.log(`Server started on PORT ${PORT}`))
 
 module.exports = app
