@@ -4,12 +4,13 @@ const MovieSchedule = require('../models/movieSchedule')
 const mongoose = require("mongoose")
 
 const handleGetAllMovies = async (req, res) => {
-    const page = req.query.page ? parseInt(req.query.page) : 1
-    const LIMIT = 5
-    const skipValue = (page - 1) * LIMIT
+    // const page = req.query.page ? parseInt(req.query.page) : 1
+    // const LIMIT = 5
+    // const skipValue = (page - 1) * LIMIT
     try {
-        const movies = await Movie.find({}).skip(skipValue).limit(LIMIT)
-        return res.json({ status: 'success', data: { page, movies } })
+        // const movies = await Movie.find({}).skip(skipValue).limit(LIMIT)
+        const movies = await Movie.find({})
+        return res.json({ status: 'success', data: { movies } })
     } catch (error) {
         return res.status(500).json({ status: 'error', message: 'Internal server error' })
     }
@@ -30,7 +31,9 @@ const handleGetMovieById = async (req, res) => {
 const handleCreateMovie = async (req, res) => {
     const safeParseResult = movieLib.validateCreateMovieInputs(req.body)
 
-    if (safeParseResult.error) throw new error(safeParseResult.error)
+    if(safeParseResult.error) {
+        return res.status(400).json({ status: 'error', error: safeParseResult.error})
+    }
 
     const { title, description, language, genre, releaseDate, imageUrl } = safeParseResult.data
 
