@@ -31,8 +31,6 @@ app.post('/api/v1/stripe/webhook', express.raw({type: 'application/json'}), asyn
         return;
     }
 
-    // console.log('Event', event)
-
     switch (event.type) {
         case 'checkout.session.completed' : {
             const txnId = event.data.object.id
