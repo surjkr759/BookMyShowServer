@@ -89,6 +89,7 @@ const handleGetMovieSchedule = async (req, res) => {
                 "movieId": new mongoose.Types.ObjectId(movieId)
             }
         },
+        { $sort: { startTime: 1 } },  // sort by date/time ascending
         {
             $lookup: {
                 from: "theatres",
