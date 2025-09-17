@@ -5,6 +5,9 @@ const controller = require('../controllers/movie')
 const router = express.Router()
 
 router.get('/', controller.handleGetAllMovies)
+// search by title
+router.get('/search', controller.handleSearchMovies);
+
 router.get('/:id', controller.handleGetMovieById)
 
 //id===> movie Id

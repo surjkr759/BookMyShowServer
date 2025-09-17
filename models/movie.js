@@ -27,6 +27,8 @@ const movieSchema = new Schema({
     },
 }, { timestamps: true })
 
+movieSchema.index({ title: 1 });
+
 const Movie = model('movie', movieSchema)
 
 module.exports = Movie

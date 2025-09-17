@@ -109,4 +109,37 @@ const handleGetMovieSchedule = async (req, res) => {
 }
 
 
-module.exports = { handleCreateMovie, handleGetAllMovies, handleGetMovieById, handleUpdateMovieById, handleDeleteMovieById, handleGetMovieSchedule }
+// GET /api/v1/movie/search?q=vedaa
+const handleSearchMovies = async (req, res) => {
+  try {
+    const q = (req.query.q || '').trim();
+    if (!q) {
+      return res.json({ status: 'success', data: { movies: [] } });
+    }
+
+    // Projection keeps payload small; keep _id for routing
+    const projection = { title: 1, imageUrl: 1, genre: 1, language: 1, releaseDate: 1 };
+    const movies = await Movie.find(
+      { title: { $regex: q, $options: 'i' } },
+      projection
+    )
+      .sort({ releaseDate: -1 })
+      .limit(20);
+
+    return res.json({ status: 'success', data: { movies } });
+  } catch (err) {
+    console.error('search movies error:', err);
+    return res.status(500).json({ status: 'error', message: 'Internal Server Error' });
+  }
+};
+
+
+module.exports = { 
+    handleCreateMovie, 
+    handleGetAllMovies, 
+    handleGetMovieById, 
+    handleUpdateMovieById, 
+    handleDeleteMovieById, 
+    handleGetMovieSchedule,
+    handleSearchMovies
+ }
