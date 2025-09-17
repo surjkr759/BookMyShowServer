@@ -3,6 +3,7 @@ const User = require('../models/user')
 const Movie = require('../models/movie')
 const movieScheduleLib = require('../lib/movieSchedule')
 const Booking = require('../models/booking')
+const mongoose = require('mongoose')
 
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY)
 
@@ -87,8 +88,8 @@ const handleCreateBookingOrder = async (req, res) => {
         return res.status(400).json({ status: 'error', message: 'Booking not allowed for a past schedule'})
 
     const session = await stripe.checkout.sessions.create({
-        success_url: 'http://localhost:5173/success',
-        // return_url: `http://localhost:5173/movie/${schedule.movieId}`,
+        success_url: 'http://localhost:5173/success?session_id={CHECKOUT_SESSION_ID}',
+        cancel_url: `http://localhost:5173/movie/${schedule.movieId}`,
         customer_email: user.email,
         line_items: [
             {
@@ -97,7 +98,8 @@ const handleCreateBookingOrder = async (req, res) => {
                     unit_amount: parseInt(schedule.price) * 100,
                     currency: 'INR',
                     product_data: {
-                        name: movie.title
+                        name: movie.title,
+                        description: `${movie.title} - ${new Date(schedule.startTime).toLocaleString()}`
                     }
                 },
                 quantity: 1,
@@ -109,8 +111,94 @@ const handleCreateBookingOrder = async (req, res) => {
 
     // console.log('Session URL:', session.url)
 
-    return res.json({ status: 'success', data: session})
+    return res.json({ status: 'success', data: { url: session.url }})
 }
+
+const handleConfirmBooking = async (req, res) => {
+  try {
+    const { session_id } = req.query;
+    if (!session_id) return res.status(400).json({ status: 'error', message: 'session_id is required' });
+
+    // Retrieve session from Stripe
+    const session = await stripe.checkout.sessions.retrieve(session_id);
+    if (!session) return res.status(404).json({ status: 'error', message: 'Session not found' });
+
+    if (session.payment_status !== 'paid') {
+      return res.status(400).json({ status: 'error', message: 'Payment not completed' });
+    }
+
+    // Read metadata set at checkout time
+    const scheduleId = session.metadata?.scheduleId;
+    const userId = session.metadata?.userId;
+    const transactionId = session.payment_intent || session.id;
+
+    if (!scheduleId || !userId) {
+      return res.status(400).json({ status: 'error', message: 'Missing metadata in session' });
+    }
+
+    // Idempotency: don’t create duplicates for same txn
+    const existing = await Booking.findOne({ transactionId });
+    if (existing) {
+      return res.json({ status: 'success', data: { booking: existing, existed: true } });
+    }
+
+    const booking = await Booking.create({ scheduleId, userId, transactionId });
+    return res.json({ status: 'success', data: { booking } });
+  } catch (err) {
+    console.error('confirm booking error:', err);
+    return res.status(500).json({ status: 'error', message: 'Internal Server Error' });
+  }
+};
+
+
+const handleGetMyBookings = async (req, res) => {
+  try {
+    const userId = req.user?._id;
+    if (!userId) return res.status(401).json({ status: 'error', message: 'Unauthorized' });
+
+    // Join with schedules and movies for a friendly response
+    const myBookings = await Booking.aggregate([
+      { $match: { userId: new mongoose.Types.ObjectId(userId) } },
+      {
+        $lookup: {
+          from: 'movieschedules',
+          localField: 'scheduleId',
+          foreignField: '_id',
+          as: 'schedule',
+          pipeline: [
+            // Join Movie
+            {
+              $lookup: {
+                from: 'movies',
+                localField: 'movieId',
+                foreignField: '_id',
+                as: 'movie'
+              }
+            },
+            { $unwind: '$movie' },
+            // Join Theatre
+            {
+              $lookup: {
+                from: 'theatres',
+                localField: 'theatreId',
+                foreignField: '_id',
+                as: 'theatre'
+              }
+            },
+            { $unwind: '$theatre' }
+          ]
+        }
+      },
+      { $unwind: '$schedule' },
+      { $sort: { createdAt: -1 } }
+    ]);
+
+    return res.json({ status: 'success', data: { bookings: myBookings } });
+  } catch (err) {
+    console.error('get my bookings error:', err);
+    return res.status(500).json({ status: 'error', message: 'Internal Server Error' });
+  }
+};
 
 
 const handleGetAllBookings = async (req, res) => {
@@ -170,4 +258,4 @@ const handleGetAllBookings = async (req, res) => {
 }
 
 
-module.exports = { handleCreateMovieSchedule, handleGetAllMovieSchedules, handleGetMovieScheduleById, handleUpdateMovieScheduleById, handleDeleteMovieScheduleById, handleCreateBookingOrder, handleGetAllBookings }
+module.exports = { handleCreateMovieSchedule, handleGetAllMovieSchedules, handleGetMovieScheduleById, handleConfirmBooking, handleUpdateMovieScheduleById, handleDeleteMovieScheduleById, handleCreateBookingOrder, handleGetAllBookings, handleGetMyBookings }
