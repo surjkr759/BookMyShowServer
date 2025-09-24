@@ -18,6 +18,7 @@ const handleGetAllTheatres = async (req, res) => {
 const handleGetTheatreById = async (req, res) => {
     try {
         const theatre = await Theatre.findById(req.params.id)
+        if (!theatre) return res.status(404).json({ status: 'error', error: 'Not Found' });
         return res.status(200).json({ status: 'success', data: theatre})
     } catch(error) {
         return res.status(404).json({status: 'error', error: 'Thetre not found'})
@@ -30,15 +31,9 @@ const handleCreateNewTheatre = async (req, res) => {
     if(safeParseResult.error) 
         return res.status(400).json({ status: 'error', error: safeParseResult.error})
 
-    const { theatreName, location: {lat, lon, address}, isActive } = safeParseResult.data 
-
     try {
-        const newTheatre = await Theatre.create({ 
-            theatreName, 
-            location: {lat, lon, address}, 
-            isActive: isActive || true 
-        })
-        return res.status(201).json({status: 'success', data: { id: newTheatre._id }})
+        const newTheatre = await Theatre.create(safeParseResult.data)
+        return res.status(201).json({status: 'success', data: { theatre: newTheatre }})
     } catch (err) {
         return res.status(500).json({status: 'error', error: 'Internal Server Error'})
     }
@@ -46,24 +41,13 @@ const handleCreateNewTheatre = async (req, res) => {
 
 
 const handleUpdateTheatreById = async (req, res) => {
-    const theatreId = req.params.id
-
-    const safeParseResult = theatreLib.validateNewTheatreCreation(req.body)
-
-    if(safeParseResult.error) throw new error(safeParseResult.error)
-
-    const { theatreName, location: {lat, lon, address}, isActive } = safeParseResult.data
-
     try {
-        const theatre = await Theatre.findByIdAndUpdate(
-            theatreId,
-            { theatreName, location: {lat, lon, address}, isActive },
-            { new: true }
-        )
-        return res.status(200).json({ status: 'success', data: { id: theatre._id}})
-    } catch (err) {
-        return res.status(500).json({status: 'error', error: 'Internal Server Error'})
-    }
+    const theatre = await Theatre.findByIdAndUpdate(req.params.id, req.body, { new: true });
+    if (!theatre) return res.status(404).json({ status: 'error', error: 'Not Found' });
+    return res.json({ status: 'success', data: { theatre } });
+  } catch (err) {
+    return res.status(500).json({ status: 'error', error: 'Internal Server Error' });
+  }
 }
 
 
@@ -72,9 +56,27 @@ const handleDeleteTheatreById = async (req, res) => {
         await Theatre.findByIdAndDelete(req.params.id)
         return res.status(200).json({status: 'success', message: 'Theatre deleted successfully'})
     } catch (error) {
-        return res.status(400).json({status: 'error', error: 'Theatre not found'})
+        return res.status(500).json({status: 'error', error: 'Internal Server Error'})
     }
 }
 
 
-module.exports = { handleCreateNewTheatre, handleGetAllTheatres, handleGetTheatreById, handleUpdateTheatreById, handleDeleteTheatreById }
+const handleGetAllCities = async (req, res) => {
+  try {
+    const cities = (await Theatre.distinct('location.city', { isActive: true })).sort();
+    return res.json({ status: 'success', data: { cities } });
+  } catch (err) {
+    console.error('cities fetch error:', err);
+    return res.status(500).json({ status: 'error', message: 'Internal Server Error' });
+  }
+};
+
+
+module.exports = { 
+    handleCreateNewTheatre, 
+    handleGetAllTheatres, 
+    handleGetTheatreById, 
+    handleUpdateTheatreById, 
+    handleDeleteTheatreById,
+    handleGetAllCities, 
+}

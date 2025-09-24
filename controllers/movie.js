@@ -1,20 +1,37 @@
 const Movie = require('../models/movie')
-const movieLib = require('../lib/movie')
+const movieLib = require('../lib/movie')   
 const MovieSchedule = require('../models/movieSchedule')
 const mongoose = require("mongoose")
+const Theatre = require('../models/theatre');
 
-const handleGetAllMovies = async (req, res) => {
-    // const page = req.query.page ? parseInt(req.query.page) : 1
-    // const LIMIT = 5
-    // const skipValue = (page - 1) * LIMIT
-    try {
-        // const movies = await Movie.find({}).skip(skipValue).limit(LIMIT)
-        const movies = await Movie.find({})
-        return res.json({ status: 'success', data: { movies } })
-    } catch (error) {
-        return res.status(500).json({ status: 'error', message: 'Internal server error' })
+const handleGetAllMovies = async (req, res) => {try {
+    const { city } = req.query;
+
+    if (!city) {
+      const movies = await Movie.find({}).lean();
+      return res.json({ status: 'success', data: { movies } });
     }
 
+    // Find theatres in the requested city
+    const theatreIds = await Theatre.find({ 'location.city': city, isActive: true })
+      .distinct('_id');
+
+    if (theatreIds.length === 0) {
+      return res.json({ status: 'success', data: { movies: [] } });
+    }
+
+    // Find scheduled movies in those theatres
+    const movieIds = await MovieSchedule.find({ theatreId: { $in: theatreIds } })
+      .distinct('movieId');
+
+    const movies = await Movie.find({ _id: { $in: movieIds.map(id => new mongoose.Types.ObjectId(id)) } });
+
+    return res.json({ status: 'success', data: { movies } });
+
+  } catch (error) {
+    console.error('get movies by city error:', error);
+    return res.status(500).json({ status: 'error', message: 'Internal server error' });
+  }
 }
 
 const handleGetMovieById = async (req, res) => {
@@ -83,28 +100,29 @@ const handleDeleteMovieById = async (req, res) => {
 
 const handleGetMovieSchedule = async (req, res) => {
     const movieId = req.params.id
-    const result = await MovieSchedule.aggregate([
-        {
-            $match: {
-                "movieId": new mongoose.Types.ObjectId(movieId)
-            }
-        },
-        { $sort: { startTime: 1 } },  // sort by date/time ascending
-        {
-            $lookup: {
-                from: "theatres",
-                localField: "theatreId",
-                foreignField: "_id",
-                as: "theatre"
-            }
-        },
-        {
-            $unwind: {
-                path: "$theatre",
-                preserveNullAndEmptyArrays: false
-            }
+    const city = req.query.city; // optional ?city=Delhi
+    const match = { movieId: new mongoose.Types.ObjectId(movieId), startTime: { $gte: new Date() } };
+
+    const pipeline = [
+    { $match: match },
+    { $sort: { startTime: 1 } },
+    {
+        $lookup: {
+        from: "theatres",
+        localField: "theatreId",
+        foreignField: "_id",
+        as: "theatre"
         }
-    ])
+    },
+    { $unwind: "$theatre" }
+    ];
+
+    if (city) {
+    // filter schedules whose theatre.city matches requested city
+    pipeline.push({ $match: { "theatre.city": city } });
+    }
+
+    const result = await MovieSchedule.aggregate(pipeline);
 
     return res.json({ status: 'success', data: { schedule: result}})
 }
@@ -113,21 +131,20 @@ const handleGetMovieSchedule = async (req, res) => {
 // GET /api/v1/movie/search?q=vedaa
 const handleSearchMovies = async (req, res) => {
   try {
-    const q = (req.query.q || '').trim();
-    if (!q) {
-      return res.json({ status: 'success', data: { movies: [] } });
+    const { q, city } = req.query;
+    const titleFilter = q ? { title: { $regex: q, $options: 'i' } } : {};
+
+    if (!city) {
+      const movies = await Movie.find(titleFilter).limit(20);
+      return res.json({ status: 'success', data: { movies } });
     }
 
-    // Projection keeps payload small; keep _id for routing
-    const projection = { title: 1, imageUrl: 1, genre: 1, language: 1, releaseDate: 1 };
-    const movies = await Movie.find(
-      { title: { $regex: q, $options: 'i' } },
-      projection
-    )
-      .sort({ releaseDate: -1 })
-      .limit(20);
+    const theatreIds = await Theatre.find({ 'location.city': city, isActive: true }).distinct('_id');
+    const movieIds = await MovieSchedule.find({ theatreId: { $in: theatreIds } }).distinct('movieId');
 
+    const movies = await Movie.find({ _id: { $in: movieIds }, ...titleFilter }).limit(20);
     return res.json({ status: 'success', data: { movies } });
+
   } catch (err) {
     console.error('search movies error:', err);
     return res.status(500).json({ status: 'error', message: 'Internal Server Error' });

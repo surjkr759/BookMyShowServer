@@ -6,6 +6,7 @@ const router = express.Router()
 
 
 router.get('/', controller.handleGetAllTheatres)
+router.get('/cities', controller.handleGetAllCities)
 router.get('/:id', controller.handleGetTheatreById)
 
 router.post('/', ensureAuthenticated(['admin']), controller.handleCreateNewTheatre)

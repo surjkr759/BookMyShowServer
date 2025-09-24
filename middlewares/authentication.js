@@ -27,11 +27,11 @@ function ensureAuthenticated(allowedRoles = null) {
         if(!user) return res.status(401).json({status: 'error', error: 'Not authenticated'})
 
         //if no allowedRoles is passed as an argument, all roles are allowed
-        if(!allowedRoles) return next()
-
-        // const u = await User.findById(user._id)
-        if(!allowedRoles.includes(user.role)) return res.json({ error: 'Access denied' })
-
+        if (Array.isArray(allowedRoles) && allowedRoles.length > 0) {
+            if (!allowedRoles.includes(user.role)) {
+                return res.status(403).json({ status: 'error', error: 'Access denied' });
+            }
+        }
         return next()
     }
 }

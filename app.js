@@ -1,5 +1,9 @@
 const express = require('express')
 const mongoose = require('mongoose')
+const cors = require('cors')
+const helmet = require('helmet')
+const morgan = require('morgan')
+
 const authRoute = require('./routes/auth')
 const movieRoute = require('./routes/movie')
 const theatreRoute = require('./routes/theatre')
@@ -8,10 +12,12 @@ const Booking = require('./models/booking')
 
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 
-const cors = require('cors')
-
 const app = express()
 const PORT = process.env.PORT
+
+const ALLOWED_ORIGINS = ('http://localhost:5173')
+  .split(',')
+  .map(s => s.trim());
 
 const { authenticationMiddleware } = require('./middlewares/authentication')
 
@@ -53,9 +59,27 @@ app.post('/api/v1/stripe/webhook', express.raw({type: 'application/json'}), asyn
 })
 
 //Middlewares
-app.use(express.json())
-app.use(cors())
+app.use(helmet())
+app.use(cors({
+  origin(origin, cb) {
+    // allow non-browser tools like curl/postman (no origin header)
+    if (!origin) return cb(null, true);
+    if (ALLOWED_ORIGINS.includes(origin)) return cb(null, true);
+    return cb(new Error(`CORS: origin ${origin} not allowed`));
+  },
+  methods: ['GET','POST','PUT','PATCH','DELETE','OPTIONS'],
+  allowedHeaders: ['Content-Type','Authorization'],
+  credentials: true, // set to true only if you actually send cookies/auth
+}));
+
+app.use(express.json({ limit: '1mb' }))
+app.use(morgan('dev'))
+
+//Auth
 app.use(authenticationMiddleware())
+
+// Health
+app.get('/healthz', (req, res) => res.send('ok'))
 
 app.get('/', (req, res) => res.json({message: 'Server started..'}))
 

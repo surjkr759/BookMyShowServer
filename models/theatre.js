@@ -8,6 +8,7 @@ const theatreSchema = new Schema({
     location: {
         lat: {type: String, required: true},
         lon: {type: String, required: true},
+        city: { type: String, required: true },
         address: {type: String, required: true},
     },
     isActive: {
